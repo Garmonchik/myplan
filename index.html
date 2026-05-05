@@ -177,6 +177,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .emoji-opt{width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;border-radius:8px;cursor:pointer;transition:background .15s;}
 .emoji-opt:hover{background:var(--surface2);}
 
+/* ── Onboarding ── */
+.onboarding{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;align-items:center;justify-content:center;transition:opacity .4s;}
+.onboarding.hidden{opacity:0;pointer-events:none;}
+.ob-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:40px;width:380px;display:flex;flex-direction:column;align-items:center;gap:20px;box-shadow:0 20px 60px rgba(0,0,0,.1);}
+.ob-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.5px;display:flex;align-items:center;gap:8px;}
+.ob-dot{width:12px;height:12px;border-radius:50%;background:var(--current);}
+.ob-title{font-family:'Syne',sans-serif;font-weight:700;font-size:20px;text-align:center;line-height:1.3;}
+.ob-sub{font-size:14px;color:var(--muted);text-align:center;line-height:1.5;}
+.ob-input{width:100%;background:var(--surface2);border:1.5px solid var(--border2);border-radius:12px;padding:12px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;text-align:center;transition:border-color .18s;}
+.ob-input:focus{border-color:var(--current);}
+.ob-input::placeholder{color:var(--muted);}
+.ob-btn{width:100%;background:var(--current);border:none;border-radius:12px;padding:13px;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:all .18s;}
+.ob-btn:hover{filter:brightness(1.08);}
+.ob-hint{font-size:12px;color:var(--muted);text-align:center;}
 .typing{display:flex;gap:4px;align-items:center;padding:5px 0;}
 .typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite;}
 .typing span:nth-child(2){animation-delay:.2s}
@@ -216,11 +230,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
   <div class="zones-label">Мои сферы</div>
   <div class="zones-list" id="zones-list"></div>
-  <div class="sidebar-footer">
-    <div class="avatar">G</div>
+  <div class="sidebar-footer" onclick="openProfileEdit()" style="cursor:pointer" title="Изменить имя">
+    <div class="avatar" id="user-avatar">?</div>
     <div>
-      <div class="avatar-name">Гармончик</div>
-      <div class="avatar-sub">Только я</div>
+      <div class="avatar-name" id="user-name">...</div>
+      <div class="avatar-sub">Моё пространство</div>
     </div>
   </div>
 </aside>
@@ -308,6 +322,30 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="m-btns">
       <button class="btn-cancel" onclick="closeModal()">Отмена</button>
       <button class="btn-primary" id="modal-save" onclick="saveTask()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Onboarding screen -->
+<div class="onboarding" id="onboarding">
+  <div class="ob-card">
+    <div class="ob-logo"><div class="ob-dot"></div>MyPlan</div>
+    <div class="ob-title">Добро пожаловать!<br>Как тебя зовут?</div>
+    <div class="ob-sub">Это имя будет отображаться только в твоём браузере. Другие пользователи введут своё.</div>
+    <input class="ob-input" id="ob-input" placeholder="Твоё имя..." maxlength="30" onkeydown="if(event.key==='Enter') finishOnboarding()">
+    <button class="ob-btn" id="ob-btn" onclick="finishOnboarding()">Начать →</button>
+    <div class="ob-hint">Можно изменить в любой момент — нажми на своё имя снизу слева</div>
+  </div>
+</div>
+
+<!-- Profile edit modal -->
+<div class="overlay" id="modal-profile-overlay">
+  <div class="modal" style="width:340px;">
+    <h3>Изменить имя</h3>
+    <input class="m-input" id="profile-input" placeholder="Твоё имя..." maxlength="30" onkeydown="if(event.key==='Enter') saveProfile()">
+    <div class="m-btns">
+      <button class="btn-cancel" onclick="document.getElementById('modal-profile-overlay').classList.remove('open')">Отмена</button>
+      <button class="btn-primary" id="profile-save-btn" onclick="saveProfile()">Сохранить</button>
     </div>
   </div>
 </div>
@@ -608,6 +646,48 @@ function selectEmoji(em) {
   picker.classList.remove('open');
 }
 
+/* ── User profile ── */
+let userName = localStorage.getItem('myplan_username') || '';
+
+function getUserInitial() {
+  return userName.trim() ? userName.trim()[0].toUpperCase() : '?';
+}
+
+function applyUserName() {
+  document.getElementById('user-name').textContent = userName || 'Гость';
+  document.getElementById('user-avatar').textContent = getUserInitial();
+}
+
+function finishOnboarding() {
+  const val = document.getElementById('ob-input').value.trim();
+  if (!val) { document.getElementById('ob-input').focus(); return; }
+  userName = val;
+  localStorage.setItem('myplan_username', userName);
+  applyUserName();
+  const ob = document.getElementById('onboarding');
+  ob.classList.add('hidden');
+  setTimeout(() => ob.style.display = 'none', 400);
+}
+
+function openProfileEdit() {
+  document.getElementById('profile-input').value = userName;
+  document.getElementById('modal-profile-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('profile-input').focus(), 50);
+}
+
+function saveProfile() {
+  const val = document.getElementById('profile-input').value.trim();
+  if (!val) return;
+  userName = val;
+  localStorage.setItem('myplan_username', userName);
+  applyUserName();
+  document.getElementById('modal-profile-overlay').classList.remove('open');
+}
+
+document.getElementById('modal-profile-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
 /* ── AI ── */
 const SYS = `Ты личный ИИ-ассистент планировщика. Помогаешь структурировать задачи, исправляешь орфографию, предлагаешь как разбить цели на шаги. Отвечай коротко и дружелюбно на языке пользователя (чаще русский). Максимум 3-4 предложения.`;
 async function sendToAI() {
@@ -615,7 +695,7 @@ async function sendToAI() {
   if(!text) return; inp.value='';
   const msgs=document.getElementById('ai-messages');
   const um=document.createElement('div'); um.className='msg user';
-  um.innerHTML=`<div class="msg-av">Г</div><div class="msg-bub">${text}</div>`;
+  um.innerHTML=`<div class="msg-av">${getUserInitial()}</div><div class="msg-bub">${text}</div>`;
   msgs.appendChild(um);
   const ty=document.createElement('div'); ty.className='msg ai';
   ty.innerHTML=`<div class="msg-av">✦</div><div class="msg-bub"><div class="typing"><span></span><span></span><span></span></div></div>`;
@@ -639,6 +719,19 @@ document.getElementById('ai-input').addEventListener('keydown', e=>{ if(e.key===
 /* ── Init ── */
 document.documentElement.setAttribute('data-theme', theme);
 document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+
+// Profile
+applyUserName();
+if (!userName) {
+  // Show onboarding, hide app blur
+  document.getElementById('onboarding').style.display = 'flex';
+  setTimeout(() => document.getElementById('ob-input').focus(), 300);
+} else {
+  document.getElementById('onboarding').style.display = 'none';
+}
+
+// Update profile save btn color when zone changes (call after applyZoneColor)
+document.getElementById('profile-save-btn').style.background = 'var(--current)';
 
 // Demo data
 if (!Object.values(tasks).some(arr=>arr.length>0)) {
