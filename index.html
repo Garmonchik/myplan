@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyPlan</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --current:#1A9E6E; --current-bg:rgba(26,158,110,0.12);
+}
+[data-theme="light"] {
+  --bg:#F5F4F0; --surface:#FFFFFF; --surface2:#F0EEE8;
+  --border:rgba(0,0,0,0.07); --border2:rgba(0,0,0,0.13);
+  --text:#1a1a1a; --muted:#7a7670;
+}
+[data-theme="dark"] {
+  --bg:#0f1117; --surface:#181c25; --surface2:#1f2433;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.13);
+  --text:#e8eaf2; --muted:#6b7280;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;transition:background .25s,color .25s;}
+.app{display:flex;height:100vh;}
+
+/* Sidebar */
+.sidebar{width:232px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:background .25s,border-color .25s;}
+.sidebar-top{padding:20px 18px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;letter-spacing:-.5px;display:flex;align-items:center;gap:7px;}
+.logo-dot{width:10px;height:10px;border-radius:50%;background:var(--current);transition:background .3s;flex-shrink:0;}
+.top-btns{display:flex;gap:6px;}
+.icon-btn{width:30px;height:30px;border-radius:9px;border:1px solid var(--border2);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:all .2s;flex-shrink:0;}
+.icon-btn:hover{background:var(--border2);color:var(--text);}
+.icon-btn svg{width:14px;height:14px;}
+[data-theme="light"] .icon-moon{display:block;}[data-theme="light"] .icon-sun{display:none;}
+[data-theme="dark"]  .icon-moon{display:none;}[data-theme="dark"]  .icon-sun{display:block;}
+
+.zones-label{font-size:10px;font-weight:500;letter-spacing:1.8px;color:var(--muted);text-transform:uppercase;padding:16px 18px 6px;}
+.zones-list{display:flex;flex-direction:column;}
+
+.zone-btn{display:flex;align-items:center;gap:9px;padding:8px 18px;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;width:100%;text-align:left;transition:all .18s;}
+.zone-btn:hover{color:var(--text);background:var(--surface2);}
+.zone-btn.active{color:var(--zc);background:var(--zb);font-weight:500;}
+.zone-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--surface2);font-size:15px;line-height:1;transition:background .18s;}
+.zone-btn.active .zone-icon{background:var(--zc);}
+.zone-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.zone-count{font-size:11px;font-weight:500;background:var(--surface2);color:var(--muted);padding:2px 7px;border-radius:20px;flex-shrink:0;transition:all .18s;}
+.zone-btn.active .zone-count{background:var(--zc);color:#fff;}
+
+.sidebar-footer{margin-top:auto;padding:14px 18px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7C5CBF,#1A9E6E);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.avatar-name{font-size:13px;font-weight:500;}
+.avatar-sub{font-size:11px;color:var(--muted);}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);transition:background .25s;}
+.topbar{padding:16px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;transition:background .25s,border-color .25s;}
+.topbar-icon{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;transition:background .3s;}
+.zone-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;flex:1;}
+.topbar-date{font-size:12px;color:var(--muted);}
+.btn-add{display:flex;align-items:center;gap:5px;background:var(--current);color:#fff;border:none;padding:8px 14px;border-radius:11px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .18s;flex-shrink:0;}
+.btn-add:hover{filter:brightness(1.08);transform:translateY(-1px);}
+
+.content{flex:1;overflow-y:auto;padding:20px 24px;display:flex;gap:18px;}
+.content::-webkit-scrollbar{width:4px;}
+.content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.col-left{width:284px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;}
+.col-right{flex:1;display:flex;flex-direction:column;gap:14px;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;transition:background .25s,border-color .25s;}
+
+/* Wheel */
+.wheel-card{padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;}
+.wheel-title{font-size:10px;font-weight:500;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);}
+.wheel-wrap{position:relative;width:158px;height:158px;}
+.wheel-wrap svg{transform:rotate(-90deg);}
+.wheel-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.wheel-pct{font-family:'DM Sans',sans-serif;font-size:42px;font-weight:300;line-height:1;color:var(--current);transition:color .3s;letter-spacing:-2px;}
+.wheel-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.wheel-legend{display:flex;gap:14px;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);}
+.legend-swatch{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* Stats */
+.stats-row{display:flex;gap:9px;}
+.stat-card{flex:1;padding:13px;text-align:center;border-radius:13px;}
+.stat-num{font-family:'DM Sans',sans-serif;font-size:32px;font-weight:300;color:var(--current);transition:color .3s;line-height:1;letter-spacing:-1.5px;}
+.stat-lbl{font-size:11px;color:var(--muted);margin-top:3px;}
+
+/* AI */
+.ai-card{display:flex;flex-direction:column;overflow:hidden;flex:1;}
+.ai-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;transition:background .3s,border-color .25s;}
+.ai-pip{width:7px;height:7px;border-radius:50%;background:var(--current);flex-shrink:0;transition:background .3s;animation:breathe 2.2s ease-in-out infinite;}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.4}}
+.ai-messages{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:120px;max-height:180px;}
+.ai-messages::-webkit-scrollbar{width:3px;}
+.msg{display:flex;gap:6px;align-items:flex-start;}
+.msg.user{flex-direction:row-reverse;}
+.msg-av{width:22px;height:22px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;color:var(--muted);}
+.msg.user .msg-av{background:linear-gradient(135deg,#7C5CBF,#1A9E6E);color:#fff;font-weight:700;}
+.msg-bub{background:var(--surface2);padding:7px 10px;border-radius:11px 11px 11px 3px;font-size:13px;line-height:1.5;max-width:87%;color:var(--text);transition:background .25s;}
+.msg.user .msg-bub{background:var(--current);color:#fff;border-radius:11px 11px 3px 11px;transition:background .3s;}
+.ai-input-row{padding:8px 10px;border-top:1px solid var(--border);display:flex;gap:7px;align-items:center;}
+.ai-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:7px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;resize:none;transition:border-color .18s,background .25s;}
+.ai-input::placeholder{color:var(--muted);}
+.ai-input:focus{border-color:var(--current);}
+.ai-send{width:30px;height:30px;background:var(--current);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;flex-shrink:0;}
+.ai-send:hover{filter:brightness(1.1);}
+
+/* Tasks */
+.section-label{font-size:10px;font-weight:500;letter-spacing:1.2px;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
+.tasks-list{display:flex;flex-direction:column;gap:6px;}
+.task-item{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:11px 13px;display:flex;align-items:flex-start;gap:10px;transition:all .18s;animation:popIn .22s ease;}
+@keyframes popIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.task-item:hover{border-color:var(--border2);box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.task-item.done{opacity:.5;}
+.task-check{width:19px;height:19px;border-radius:50%;border:2px solid var(--current);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;}
+.task-item.done .task-check{background:var(--current);}
+.task-check svg{width:9px;height:9px;opacity:0;transition:opacity .18s;stroke:#fff;}
+.task-item.done .task-check svg{opacity:1;}
+.task-body{flex:1;}
+.task-text{font-size:14px;line-height:1.4;}
+.task-item.done .task-text{text-decoration:line-through;color:var(--muted);}
+.task-meta{display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;}
+.task-tag{font-size:11px;padding:2px 7px;border-radius:20px;font-weight:500;}
+.task-prio{font-size:11px;padding:2px 7px;border-radius:20px;}
+.prio-high{background:rgba(196,57,74,.1);color:#C4394A;}
+.prio-med{background:rgba(212,131,10,.1);color:#D4830A;}
+.prio-low{background:rgba(26,158,110,.1);color:#1A9E6E;}
+.task-del{width:24px;height:24px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .15s;}
+.task-item:hover .task-del{opacity:1;}
+.task-del:hover{background:rgba(196,57,74,.1);color:#C4394A;}
+.add-task-row{display:flex;gap:9px;align-items:center;padding:10px 13px;background:var(--surface);border:1.5px dashed var(--border2);border-radius:13px;cursor:text;transition:border-color .18s,background .25s;}
+.add-task-row:focus-within{border-color:var(--current);border-style:solid;}
+.add-task-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;}
+.add-task-input::placeholder{color:var(--muted);}
+
+/* ── Overlay & modals ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);backdrop-filter:blur(5px);z-index:100;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.14);display:flex;flex-direction:column;gap:12px;}
+.modal-task{width:400px;}
+.modal h3{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;}
+.m-input{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;width:100%;transition:border-color .18s;}
+.m-input:focus{border-color:var(--current);}
+.m-row{display:flex;gap:9px;}
+.m-select{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;}
+.m-btns{display:flex;gap:9px;justify-content:flex-end;}
+.btn-cancel{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:8px 16px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;}
+.btn-primary{background:var(--current);border:none;border-radius:9px;padding:8px 16px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .18s;}
+.btn-primary:hover{filter:brightness(1.08);}
+
+/* ── Zone editor modal ── */
+.modal-zones{width:480px;max-height:80vh;overflow-y:auto;}
+.modal-zones::-webkit-scrollbar{width:4px;}
+.modal-zones::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.ze-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.zone-editor-list{display:flex;flex-direction:column;gap:8px;margin-bottom:4px;}
+.ze-item{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+.ze-emoji-btn{font-size:20px;width:36px;height:36px;border-radius:9px;background:var(--surface);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .18s;}
+.ze-emoji-btn:hover{border-color:var(--border2);}
+.ze-name{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;min-width:0;}
+.ze-name:focus{border-color:var(--current);}
+.ze-color-wrap{position:relative;flex-shrink:0;}
+.ze-color{width:30px;height:30px;border-radius:50%;border:2px solid var(--border2);cursor:pointer;padding:0;background:transparent;overflow:hidden;}
+.ze-color input[type=color]{width:44px;height:44px;border:none;padding:0;cursor:pointer;position:absolute;top:-7px;left:-7px;opacity:0;}
+.ze-color-dot{width:26px;height:26px;border-radius:50%;pointer-events:none;}
+.ze-del{width:28px;height:28px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.ze-del:hover{background:rgba(196,57,74,.1);color:#C4394A;}
+.ze-drag{cursor:grab;color:var(--muted);display:flex;align-items:center;}
+.btn-add-zone{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px dashed var(--border2);border-radius:10px;padding:9px 14px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;width:100%;justify-content:center;transition:all .18s;}
+.btn-add-zone:hover{border-color:var(--current);color:var(--current);}
+
+/* Emoji picker */
+.emoji-picker{display:none;position:fixed;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:10px;box-shadow:0 8px 32px rgba(0,0,0,.14);z-index:200;width:240px;flex-wrap:wrap;gap:4px;}
+.emoji-picker.open{display:flex;}
+.emoji-opt{width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;border-radius:8px;cursor:pointer;transition:background .15s;}
+.emoji-opt:hover{background:var(--surface2);}
+
+.typing{display:flex;gap:4px;align-items:center;padding:5px 0;}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite;}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-top">
+    <div class="logo">
+      <div class="logo-dot" id="logo-dot"></div>
+      MyPlan
+    </div>
+    <div class="top-btns">
+      <!-- Edit zones button -->
+      <button class="icon-btn" onclick="openZoneEditor()" title="Настроить сферы">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M2 8h1M13 8h1M8 2v1M8 13v1M4.22 4.22l.7.7M11.08 11.08l.7.7M11.08 4.22l-.7.7M4.22 11.08l.7-.7"/>
+          <circle cx="8" cy="8" r="2.5"/>
+        </svg>
+      </button>
+      <!-- Theme toggle -->
+      <button class="icon-btn" onclick="toggleTheme()" title="Сменить тему">
+        <svg class="icon-moon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M12 10a5 5 0 1 1-6.5-6.5A6 6 0 1 0 12 10z"/>
+        </svg>
+        <svg class="icon-sun" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="7.5" cy="7.5" r="2.5"/>
+          <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M3.2 3.2l1 1M10.8 10.8l1 1M10.8 3.2l-1 1M3.2 10.8l1-1"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="zones-label">Мои сферы</div>
+  <div class="zones-list" id="zones-list"></div>
+  <div class="sidebar-footer">
+    <div class="avatar">G</div>
+    <div>
+      <div class="avatar-name">Гармончик</div>
+      <div class="avatar-sub">Только я</div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-icon" id="topbar-icon"></div>
+    <div class="zone-title" id="zone-title">Загрузка...</div>
+    <div class="topbar-date" id="topbar-date"></div>
+    <button class="btn-add" id="btn-add" onclick="openModal()">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Добавить
+    </button>
+  </div>
+
+  <div class="content">
+    <div class="col-left">
+      <div class="card wheel-card">
+        <div class="wheel-title">Прогресс сегодня</div>
+        <div class="wheel-wrap">
+          <svg width="158" height="158" viewBox="0 0 158 158">
+            <circle cx="79" cy="79" r="62" stroke="var(--border2)" stroke-width="10" fill="none"/>
+            <circle id="wheel-arc" cx="79" cy="79" r="62" stroke="var(--current)" stroke-width="10" fill="none"
+              stroke-linecap="round" stroke-dasharray="389.6" stroke-dashoffset="389.6"
+              style="transition:stroke-dashoffset .85s cubic-bezier(.4,0,.2,1),stroke .3s;"/>
+          </svg>
+          <div class="wheel-center">
+            <div class="wheel-pct" id="wheel-pct">0%</div>
+            <div class="wheel-sub">выполнено</div>
+          </div>
+        </div>
+        <div class="wheel-legend">
+          <div class="legend-item"><div class="legend-swatch" id="swatch-done"></div><span id="leg-done">0 сделано</span></div>
+          <div class="legend-item"><div class="legend-swatch" style="background:var(--border2)"></div><span id="leg-left">0 осталось</span></div>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="card stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-lbl">всего задач</div></div>
+        <div class="card stat-card"><div class="stat-num" id="stat-high">0</div><div class="stat-lbl">срочных</div></div>
+      </div>
+      <div class="card ai-card">
+        <div class="ai-header" id="ai-header">
+          <div class="ai-pip" id="ai-pip"></div>ИИ-ассистент
+        </div>
+        <div class="ai-messages" id="ai-messages">
+          <div class="msg ai">
+            <div class="msg-av">✦</div>
+            <div class="msg-bub" id="ai-greeting">Привет! Расскажи что планируешь — помогу структурировать.</div>
+          </div>
+        </div>
+        <div class="ai-input-row">
+          <textarea class="ai-input" id="ai-input" rows="1" placeholder="Написать план или задачу..."></textarea>
+          <button class="ai-send" id="ai-send" onclick="sendToAI()">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M1 7h12M8 2l5 5-5 5"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="col-right">
+      <div><div class="section-label">В процессе</div><div class="tasks-list" id="tasks-todo"></div></div>
+      <div class="add-task-row">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"/></svg>
+        <input class="add-task-input" id="quick-input" placeholder="Быстро добавить... (Enter)" onkeydown="quickAdd(event)">
+      </div>
+      <div><div class="section-label">Выполнено</div><div class="tasks-list" id="tasks-done"></div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Task modal -->
+<div class="overlay" id="modal-task-overlay">
+  <div class="modal modal-task">
+    <h3>Новая задача</h3>
+    <input class="m-input" id="modal-text" placeholder="Что нужно сделать?">
+    <div class="m-row">
+      <select class="m-select" id="modal-prio">
+        <option value="high">🔴 Высокий приоритет</option>
+        <option value="med" selected>🟡 Средний приоритет</option>
+        <option value="low">🟢 Низкий приоритет</option>
+      </select>
+      <input class="m-input" id="modal-tag" placeholder="Тег" style="max-width:110px">
+    </div>
+    <div class="m-btns">
+      <button class="btn-cancel" onclick="closeModal()">Отмена</button>
+      <button class="btn-primary" id="modal-save" onclick="saveTask()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Zone editor modal -->
+<div class="overlay" id="modal-zones-overlay">
+  <div class="modal modal-zones">
+    <div class="ze-header">
+      <h3>Настройка сфер</h3>
+    </div>
+    <div class="zone-editor-list" id="zone-editor-list"></div>
+    <button class="btn-add-zone" onclick="addZone()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Добавить сферу
+    </button>
+    <div class="m-btns">
+      <button class="btn-cancel" onclick="closeZoneEditor()">Отмена</button>
+      <button class="btn-primary" id="ze-save-btn" onclick="saveZones()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Emoji picker -->
+<div class="emoji-picker" id="emoji-picker"></div>
+
+<script>
+const EMOJIS = ['⛪','💼','📚','🌿','🏠','💡','🎯','🏋️','✈️','🎨','📖','🎵','💰','🤝','🌱','🔬','🏥','🛠️','📝','🎮','🌍','👨‍👩‍👧','⚽','🍳','🎤','🧘','💻','📊','🚀','🌟'];
+
+const DEFAULT_ZONES = [
+  { id:'church',   emoji:'⛪', label:'Церковь', color:'#7C5CBF' },
+  { id:'work',     emoji:'💼', label:'Работа',  color:'#1A9E6E' },
+  { id:'school',   emoji:'📚', label:'Школа',   color:'#D4830A' },
+  { id:'personal', emoji:'🌿', label:'Личное',  color:'#C4394A' }
+];
+
+function hexBg(hex, dark) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return dark ? `rgba(${r},${g},${b},0.15)` : `rgba(${r},${g},${b},0.12)`;
+}
+
+let zones   = JSON.parse(localStorage.getItem('myplan_zones') || 'null') || JSON.parse(JSON.stringify(DEFAULT_ZONES));
+let tasks   = JSON.parse(localStorage.getItem('myplan_v3')   || 'null') || {};
+let theme   = localStorage.getItem('myplan_theme') || 'light';
+let currentZone = zones[0]?.id || 'work';
+let editingZones = [];
+let activeEmojiTarget = null;
+
+zones.forEach(z => { if (!tasks[z.id]) tasks[z.id] = []; });
+
+function saveAll() {
+  localStorage.setItem('myplan_zones', JSON.stringify(zones));
+  localStorage.setItem('myplan_v3',    JSON.stringify(tasks));
+}
+
+/* ── Theme ── */
+function toggleTheme() {
+  theme = theme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('myplan_theme', theme);
+  applyZoneColor(currentZone);
+}
+
+/* ── Zone color application ── */
+function applyZoneColor(zoneId) {
+  const z = zones.find(z => z.id === zoneId);
+  if (!z) return;
+  const isDark = theme === 'dark';
+  const bg = hexBg(z.color, isDark);
+  document.documentElement.style.setProperty('--current', z.color);
+  document.documentElement.style.setProperty('--current-bg', bg);
+  document.getElementById('wheel-arc').style.stroke = z.color;
+  document.getElementById('wheel-pct').style.color  = z.color;
+  document.getElementById('swatch-done').style.background = z.color;
+  ['stat-total','stat-high'].forEach(id => { const el=document.getElementById(id); if(el) el.style.color=z.color; });
+  document.getElementById('ai-pip').style.background    = z.color;
+  document.getElementById('ai-header').style.background = bg;
+  document.getElementById('topbar-icon').style.background = bg;
+  document.getElementById('ai-send').style.background   = z.color;
+  document.getElementById('btn-add').style.background   = z.color;
+  document.getElementById('modal-save').style.background = z.color;
+  document.getElementById('ze-save-btn').style.background = z.color;
+  document.getElementById('logo-dot').style.background  = z.color;
+}
+
+/* ── Sidebar rendering ── */
+function renderSidebar() {
+  const list = document.getElementById('zones-list');
+  list.innerHTML = '';
+  zones.forEach(z => {
+    const btn = document.createElement('button');
+    btn.className = 'zone-btn' + (z.id === currentZone ? ' active' : '');
+    btn.dataset.zone = z.id;
+    btn.style.setProperty('--zc', z.color);
+    btn.style.setProperty('--zb', hexBg(z.color, theme === 'dark'));
+    const todo = (tasks[z.id]||[]).filter(t=>!t.done).length;
+    btn.innerHTML = `
+      <div class="zone-icon">${z.emoji}</div>
+      <span class="zone-label">${z.label}</span>
+      <span class="zone-count">${todo}</span>`;
+    btn.onclick = () => switchZone(z.id);
+    list.appendChild(btn);
+  });
+}
+
+/* ── Switch zone ── */
+function switchZone(zoneId) {
+  currentZone = zoneId;
+  const z = zones.find(z => z.id === zoneId);
+  if (!z) return;
+  applyZoneColor(zoneId);
+  document.getElementById('topbar-icon').textContent = z.emoji;
+  document.getElementById('zone-title').textContent  = z.label;
+  document.getElementById('ai-greeting').textContent = `Сфера "${z.label}" — расскажи что планируешь, помогу структурировать.`;
+  renderSidebar();
+  renderTasks();
+  updateWheel();
+}
+
+/* ── Tasks ── */
+function renderTasks() {
+  const list = tasks[currentZone] || [];
+  const todoEl = document.getElementById('tasks-todo');
+  const doneEl = document.getElementById('tasks-done');
+  todoEl.innerHTML = ''; doneEl.innerHTML = '';
+  list.forEach((t,i) => (t.done ? doneEl : todoEl).appendChild(makeTaskEl(t,i)));
+}
+
+function makeTaskEl(t, i) {
+  const z = zones.find(z => z.id === currentZone);
+  const tagBg  = z ? hexBg(z.color, theme==='dark') : 'var(--surface2)';
+  const tagCol = z ? z.color : 'var(--muted)';
+  const d = document.createElement('div');
+  d.className = 'task-item' + (t.done ? ' done' : '');
+  const pc = t.prio==='high' ? 'prio-high' : t.prio==='low' ? 'prio-low' : 'prio-med';
+  const pl = t.prio==='high' ? 'Срочно'    : t.prio==='low' ? 'Не срочно' : 'Средний';
+  d.innerHTML = `
+    <div class="task-check" onclick="toggleTask(${i})">
+      <svg viewBox="0 0 10 10" fill="none" stroke-width="2" stroke-linecap="round"><path d="M2 5l2.5 2.5L8 2"/></svg>
+    </div>
+    <div class="task-body">
+      <div class="task-text">${t.text}</div>
+      <div class="task-meta">
+        ${t.tag ? `<span class="task-tag" style="background:${tagBg};color:${tagCol}">${t.tag}</span>` : ''}
+        <span class="task-prio ${pc}">${pl}</span>
+      </div>
+    </div>
+    <button class="task-del" onclick="deleteTask(${i})">
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+    </button>`;
+  return d;
+}
+
+function toggleTask(i) { tasks[currentZone][i].done=!tasks[currentZone][i].done; saveAll(); renderTasks(); updateWheel(); renderSidebar(); }
+function deleteTask(i)  { tasks[currentZone].splice(i,1); saveAll(); renderTasks(); updateWheel(); renderSidebar(); }
+
+function updateWheel() {
+  const list = tasks[currentZone]||[];
+  const total=list.length, done=list.filter(t=>t.done).length;
+  const pct = total===0 ? 0 : Math.round(done/total*100);
+  const circ = 2*Math.PI*62;
+  document.getElementById('wheel-arc').style.strokeDashoffset = circ - pct/100*circ;
+  document.getElementById('wheel-pct').textContent = pct+'%';
+  document.getElementById('leg-done').textContent  = done+' сделано';
+  document.getElementById('leg-left').textContent  = (total-done)+' осталось';
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-high').textContent  = list.filter(t=>!t.done&&t.prio==='high').length;
+}
+
+/* ── Task modal ── */
+function openModal()  { document.getElementById('modal-task-overlay').classList.add('open'); setTimeout(()=>document.getElementById('modal-text').focus(),50); }
+function closeModal() { document.getElementById('modal-task-overlay').classList.remove('open'); }
+document.getElementById('modal-task-overlay').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
+document.getElementById('modal-text').addEventListener('keydown', e=>{ if(e.key==='Enter') saveTask(); });
+
+function saveTask() {
+  const text = document.getElementById('modal-text').value.trim();
+  if (!text) return;
+  if (!tasks[currentZone]) tasks[currentZone]=[];
+  tasks[currentZone].push({ text, done:false, prio:document.getElementById('modal-prio').value, tag:document.getElementById('modal-tag').value.trim() });
+  document.getElementById('modal-text').value='';
+  document.getElementById('modal-tag').value='';
+  saveAll(); renderTasks(); updateWheel(); renderSidebar(); closeModal();
+}
+
+function quickAdd(e) {
+  if (e.key!=='Enter') return;
+  const text=e.target.value.trim(); if(!text) return;
+  if (!tasks[currentZone]) tasks[currentZone]=[];
+  tasks[currentZone].push({text,done:false,prio:'med',tag:''});
+  e.target.value='';
+  saveAll(); renderTasks(); updateWheel(); renderSidebar();
+}
+
+/* ── Zone editor ── */
+function openZoneEditor() {
+  editingZones = JSON.parse(JSON.stringify(zones));
+  renderZoneEditor();
+  document.getElementById('modal-zones-overlay').classList.add('open');
+}
+function closeZoneEditor() {
+  document.getElementById('modal-zones-overlay').classList.remove('open');
+  closeEmojiPicker();
+}
+document.getElementById('modal-zones-overlay').addEventListener('click', e=>{ if(e.target===e.currentTarget){ closeZoneEditor(); } });
+
+function renderZoneEditor() {
+  const list = document.getElementById('zone-editor-list');
+  list.innerHTML='';
+  editingZones.forEach((z, i) => {
+    const row = document.createElement('div');
+    row.className = 'ze-item';
+    row.innerHTML = `
+      <button class="ze-emoji-btn" onclick="openEmojiPicker(${i}, this)" title="Выбрать иконку">${z.emoji}</button>
+      <input class="ze-name m-input" value="${z.label}" placeholder="Название сферы" style="margin:0"
+        oninput="editingZones[${i}].label=this.value">
+      <div class="ze-color-wrap" title="Выбрать цвет">
+        <div class="ze-color" style="border-color:${z.color}">
+          <div class="ze-color-dot" style="background:${z.color}"></div>
+          <input type="color" value="${z.color}" oninput="updateEditColor(${i},this.value,this.closest('.ze-color'))">
+        </div>
+      </div>
+      ${editingZones.length > 1 ? `<button class="ze-del" onclick="deleteEditZone(${i})" title="Удалить">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+      </button>` : '<div style="width:28px"></div>'}`;
+    list.appendChild(row);
+  });
+}
+
+function updateEditColor(i, val, wrap) {
+  editingZones[i].color = val;
+  wrap.style.borderColor = val;
+  wrap.querySelector('.ze-color-dot').style.background = val;
+}
+
+function deleteEditZone(i) {
+  if (editingZones.length <= 1) return;
+  editingZones.splice(i,1);
+  renderZoneEditor();
+}
+
+function addZone() {
+  const colors = ['#E05C8A','#2A7DD1','#D4830A','#1A9E6E','#7C5CBF','#C4394A'];
+  const emojis = ['🎯','💡','🌍','🚀','🎨','⚽'];
+  const idx = editingZones.length % colors.length;
+  editingZones.push({ id:'zone_'+Date.now(), emoji:emojis[idx], label:'Новая сфера', color:colors[idx] });
+  renderZoneEditor();
+  setTimeout(()=>{
+    const inputs = document.querySelectorAll('.ze-name');
+    const last = inputs[inputs.length-1];
+    if(last){ last.focus(); last.select(); }
+  },50);
+}
+
+function saveZones() {
+  // Preserve tasks for surviving zones
+  const newTasks = {};
+  editingZones.forEach(ez => {
+    const old = zones.find(z=>z.id===ez.id);
+    newTasks[ez.id] = tasks[ez.id] || [];
+  });
+  zones = editingZones.map(ez => ({...ez}));
+  tasks = newTasks;
+  // If current zone was deleted, switch to first
+  if (!zones.find(z=>z.id===currentZone)) {
+    currentZone = zones[0]?.id;
+  }
+  saveAll();
+  renderSidebar();
+  switchZone(currentZone);
+  closeZoneEditor();
+}
+
+/* ── Emoji picker ── */
+const picker = document.getElementById('emoji-picker');
+EMOJIS.forEach(em => {
+  const btn = document.createElement('div');
+  btn.className = 'emoji-opt';
+  btn.textContent = em;
+  btn.onclick = (e) => { e.stopPropagation(); selectEmoji(em); };
+  picker.appendChild(btn);
+});
+
+function openEmojiPicker(zoneIdx, btn) {
+  activeEmojiTarget = { zoneIdx, btn };
+  const rect = btn.getBoundingClientRect();
+  picker.style.top  = (rect.bottom + 6) + 'px';
+  picker.style.left = Math.min(rect.left, window.innerWidth - 260) + 'px';
+  picker.classList.add('open');
+  setTimeout(()=>document.addEventListener('click', closePicker, {once:true}), 0);
+}
+function closePicker() { picker.classList.remove('open'); }
+function closeEmojiPicker() { picker.classList.remove('open'); }
+
+function selectEmoji(em) {
+  if (!activeEmojiTarget) return;
+  editingZones[activeEmojiTarget.zoneIdx].emoji = em;
+  activeEmojiTarget.btn.textContent = em;
+  picker.classList.remove('open');
+}
+
+/* ── AI ── */
+const SYS = `Ты личный ИИ-ассистент планировщика. Помогаешь структурировать задачи, исправляешь орфографию, предлагаешь как разбить цели на шаги. Отвечай коротко и дружелюбно на языке пользователя (чаще русский). Максимум 3-4 предложения.`;
+async function sendToAI() {
+  const inp=document.getElementById('ai-input'), text=inp.value.trim();
+  if(!text) return; inp.value='';
+  const msgs=document.getElementById('ai-messages');
+  const um=document.createElement('div'); um.className='msg user';
+  um.innerHTML=`<div class="msg-av">Г</div><div class="msg-bub">${text}</div>`;
+  msgs.appendChild(um);
+  const ty=document.createElement('div'); ty.className='msg ai';
+  ty.innerHTML=`<div class="msg-av">✦</div><div class="msg-bub"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(ty); msgs.scrollTop=msgs.scrollHeight;
+  const zLabel=(zones.find(z=>z.id===currentZone)||{}).label||currentZone;
+  const summary=(tasks[currentZone]||[]).map(t=>`- ${t.text} (${t.done?'✓':'•'})`).join('\n')||'пусто';
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
+        system:SYS+`\n\nСфера: ${zLabel}\nЗадачи:\n${summary}`,
+        messages:[{role:'user',content:text}]})
+    });
+    const data=await res.json();
+    ty.querySelector('.msg-bub').textContent=data.content?.[0]?.text||'Не удалось получить ответ.';
+  } catch { ty.querySelector('.msg-bub').textContent='Ошибка подключения.'; }
+  msgs.scrollTop=msgs.scrollHeight;
+}
+document.getElementById('ai-input').addEventListener('keydown', e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendToAI();} });
+
+/* ── Init ── */
+document.documentElement.setAttribute('data-theme', theme);
+document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+
+// Demo data
+if (!Object.values(tasks).some(arr=>arr.length>0)) {
+  tasks.work   = [{text:'Подготовить отчёт по проекту',done:false,prio:'high',tag:'отчёт'},{text:'Проверить логи сервера',done:true,prio:'med',tag:''},{text:'Обновить документацию',done:false,prio:'low',tag:'docs'}];
+  tasks.school = [{text:'LF8 — SQL задание',done:false,prio:'high',tag:'LF8'},{text:'Подготовить презентацию',done:false,prio:'med',tag:''}];
+  tasks.church = [{text:'Материалы для встречи',done:false,prio:'med',tag:''}];
+  saveAll();
+}
+
+renderSidebar();
+switchZone(currentZone);
+</script>
+</body>
+</html>
