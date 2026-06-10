@@ -689,6 +689,7 @@ document.getElementById('modal-profile-overlay').addEventListener('click', e => 
 });
 
 /* ── AI ── */
+const WORKER_URL = 'https://myplan-ai.dolbildmitrii16051105.workers.dev';
 const SYS = `Ты личный ИИ-ассистент планировщика. Помогаешь структурировать задачи, исправляешь орфографию, предлагаешь как разбить цели на шаги. Отвечай коротко и дружелюбно на языке пользователя (чаще русский). Максимум 3-4 предложения.`;
 async function sendToAI() {
   const inp=document.getElementById('ai-input'), text=inp.value.trim();
@@ -703,14 +704,15 @@ async function sendToAI() {
   const zLabel=(zones.find(z=>z.id===currentZone)||{}).label||currentZone;
   const summary=(tasks[currentZone]||[]).map(t=>`- ${t.text} (${t.done?'✓':'•'})`).join('\n')||'пусто';
   try {
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch(WORKER_URL,{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
+      body:JSON.stringify({
         system:SYS+`\n\nСфера: ${zLabel}\nЗадачи:\n${summary}`,
-        messages:[{role:'user',content:text}]})
+        messages:[{role:'user',content:text}]
+      })
     });
     const data=await res.json();
-    ty.querySelector('.msg-bub').textContent=data.content?.[0]?.text||'Не удалось получить ответ.';
+    ty.querySelector('.msg-bub').textContent=data.text||'Не удалось получить ответ.';
   } catch { ty.querySelector('.msg-bub').textContent='Ошибка подключения.'; }
   msgs.scrollTop=msgs.scrollHeight;
 }
