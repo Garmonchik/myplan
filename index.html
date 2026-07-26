@@ -196,10 +196,30 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .typing span:nth-child(2){animation-delay:.2s}
 .typing span:nth-child(3){animation-delay:.4s}
 @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+
+/* ── Mobile ── */
+.hamburger{display:none;width:34px;height:34px;border-radius:9px;border:1px solid var(--border2);background:var(--surface2);cursor:pointer;align-items:center;justify-content:center;color:var(--text);flex-shrink:0;}
+.hamburger svg{width:16px;height:16px;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:50;backdrop-filter:blur(2px);}
+.sidebar-overlay.open{display:block;}
+
+@media(max-width:700px){
+  .hamburger{display:flex;}
+  .sidebar{position:fixed;left:-240px;top:0;bottom:0;z-index:60;transition:left .25s ease;box-shadow:none;}
+  .sidebar.open{left:0;box-shadow:4px 0 24px rgba(0,0,0,0.15);}
+  .col-left{width:100%;}
+  .content{flex-direction:column;padding:14px;}
+  .topbar{padding:12px 16px;}
+  .zone-title{font-size:16px;}
+  .topbar-date{display:none;}
+}
 </style>
 </head>
 <body>
 <div class="app">
+
+<!-- Sidebar overlay for mobile -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- Sidebar -->
 <aside class="sidebar">
@@ -242,6 +262,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <!-- Main -->
 <div class="main">
   <div class="topbar">
+    <button class="hamburger" onclick="openSidebar()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M2 4h12M2 8h12M2 12h12"/>
+      </svg>
+    </button>
     <div class="topbar-icon" id="topbar-icon"></div>
     <div class="zone-title" id="zone-title">Загрузка...</div>
     <div class="topbar-date" id="topbar-date"></div>
@@ -408,6 +433,16 @@ function toggleTheme() {
   applyZoneColor(currentZone);
 }
 
+/* ── Mobile sidebar ── */
+function openSidebar() {
+  document.querySelector('.sidebar').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('open');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
 /* ── Zone color application ── */
 function applyZoneColor(zoneId) {
   const z = zones.find(z => z.id === zoneId);
@@ -459,6 +494,7 @@ function switchZone(zoneId) {
   document.getElementById('topbar-icon').textContent = z.emoji;
   document.getElementById('zone-title').textContent  = z.label;
   document.getElementById('ai-greeting').textContent = `Сфера "${z.label}" — расскажи что планируешь, помогу структурировать.`;
+  closeSidebar();
   renderSidebar();
   renderTasks();
   updateWheel();
