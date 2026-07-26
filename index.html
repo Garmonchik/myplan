@@ -399,6 +399,44 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <script>
 const EMOJIS = ['⛪','💼','📚','🌿','🏠','💡','🎯','🏋️','✈️','🎨','📖','🎵','💰','🤝','🌱','🔬','🏥','🛠️','📝','🎮','🌍','👨‍👩‍👧','⚽','🍳','🎤','🧘','💻','📊','🚀','🌟'];
 
+/* ── Supabase ── */
+const SB_URL = 'https://jccjjgkzooodqhugopmk.supabase.co';
+const SB_KEY = 'sb_publishable_NML9EMuLgGWvv5DxXNDspQ_pQGfw5_Y';
+
+async function sbGet(username) {
+  const res = await fetch(`${SB_URL}/rest/v1/myplan_data?username=eq.${encodeURIComponent(username)}&limit=1`, {
+    headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+  });
+  const data = await res.json();
+  return data[0] || null;
+}
+
+async function sbSave(username, zonesData, tasksData) {
+  const existing = await sbGet(username);
+  const body = JSON.stringify({ username, zones: zonesData, tasks: tasksData, updated_at: new Date().toISOString() });
+  if (existing) {
+    await fetch(`${SB_URL}/rest/v1/myplan_data?username=eq.${encodeURIComponent(username)}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' }
+      , body
+    });
+  } else {
+    await fetch(`${SB_URL}/rest/v1/myplan_data`, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
+      , body
+    });
+  }
+}
+
+let syncTimeout = null;
+function schedulSync() {
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(async () => {
+    if (userName) await sbSave(userName, zones, tasks);
+  }, 1500);
+}
+
 const DEFAULT_ZONES = [
   { id:'church',   emoji:'⛪', label:'Церковь', color:'#7C5CBF' },
   { id:'work',     emoji:'💼', label:'Работа',  color:'#1A9E6E' },
@@ -423,6 +461,7 @@ zones.forEach(z => { if (!tasks[z.id]) tasks[z.id] = []; });
 function saveAll() {
   localStorage.setItem('myplan_zones', JSON.stringify(zones));
   localStorage.setItem('myplan_v3',    JSON.stringify(tasks));
+  schedulSync();
 }
 
 /* ── Theme ── */
@@ -694,15 +733,27 @@ function applyUserName() {
   document.getElementById('user-avatar').textContent = getUserInitial();
 }
 
-function finishOnboarding() {
+async function finishOnboarding() {
   const val = document.getElementById('ob-input').value.trim();
   if (!val) { document.getElementById('ob-input').focus(); return; }
   userName = val;
   localStorage.setItem('myplan_username', userName);
   applyUserName();
+  // Try to load existing data from Supabase
+  try {
+    const existing = await sbGet(userName);
+    if (existing && existing.zones && existing.zones.length > 0) {
+      zones = existing.zones;
+      tasks = existing.tasks || {};
+      localStorage.setItem('myplan_zones', JSON.stringify(zones));
+      localStorage.setItem('myplan_v3', JSON.stringify(tasks));
+    }
+  } catch(e) {}
   const ob = document.getElementById('onboarding');
   ob.classList.add('hidden');
   setTimeout(() => ob.style.display = 'none', 400);
+  renderSidebar();
+  switchZone(zones[0]?.id || currentZone);
 }
 
 function openProfileEdit() {
@@ -761,14 +812,27 @@ document.getElementById('topbar-date').textContent = new Date().toLocaleDateStri
 // Profile
 applyUserName();
 if (!userName) {
-  // Show onboarding, hide app blur
   document.getElementById('onboarding').style.display = 'flex';
   setTimeout(() => document.getElementById('ob-input').focus(), 300);
 } else {
   document.getElementById('onboarding').style.display = 'none';
+  // Load from Supabase
+  (async () => {
+    try {
+      const existing = await sbGet(userName);
+      if (existing && existing.zones && existing.zones.length > 0) {
+        zones = existing.zones;
+        tasks = existing.tasks || {};
+        zones.forEach(z => { if (!tasks[z.id]) tasks[z.id] = []; });
+        localStorage.setItem('myplan_zones', JSON.stringify(zones));
+        localStorage.setItem('myplan_v3', JSON.stringify(tasks));
+        renderSidebar();
+        switchZone(zones[0]?.id || currentZone);
+      }
+    } catch(e) {}
+  })();
 }
 
-// Update profile save btn color when zone changes (call after applyZoneColor)
 document.getElementById('profile-save-btn').style.background = 'var(--current)';
 
 // Demo data
