@@ -404,38 +404,101 @@ const SB_URL = 'https://jccjjgkzooodqhugopmk.supabase.co';
 const SB_KEY = 'sb_publishable_NML9EMuLgGWvv5DxXNDspQ_pQGfw5_Y';
 
 async function sbGet(username) {
-  const res = await fetch(`${SB_URL}/rest/v1/myplan_data?username=eq.${encodeURIComponent(username)}&limit=1`, {
-    headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
-  });
-  const data = await res.json();
-  return data[0] || null;
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/myplan_data?username=eq.${encodeURIComponent(username)}&limit=1`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+    });
+    const data = await res.json();
+    return data[0] || null;
+  } catch { return null; }
 }
 
 async function sbSave(username, zonesData, tasksData) {
-  const existing = await sbGet(username);
-  const body = JSON.stringify({ username, zones: zonesData, tasks: tasksData, updated_at: new Date().toISOString() });
-  if (existing) {
-    await fetch(`${SB_URL}/rest/v1/myplan_data?username=eq.${encodeURIComponent(username)}`, {
-      method: 'PATCH',
-      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' }
-      , body
+  try {
+    const existing = await sbGet(username);
+    const body = JSON.stringify({ username, zones: zonesData, tasks: tasksData, updated_at: new Date().toISOString() });
+    if (existing) {
+      await fetch(`${SB_URL}/rest/v1/myplan_data?username=eq.${encodeURIComponent(username)}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+        body
+      });
+    } else {
+      await fetch(`${SB_URL}/rest/v1/myplan_data`, {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body
+      });
+    }
+  } catch(e) { console.error('Sync error:', e); }
+}
+
+// Merge two task lists — newer items win, deleted items stay deleted
+function mergeTasks(local, remote) {
+  const result = {};
+  const allZones = new Set([...Object.keys(local), ...Object.keys(remote)]);
+  allZones.forEach(zoneId => {
+    const localList  = local[zoneId]  || [];
+    const remoteList = remote[zoneId] || [];
+    // Build map by text+tag as key (simple dedup)
+    const map = {};
+    [...remoteList, ...localList].forEach(t => {
+      const key = t.text + '|' + (t.tag||'');
+      if (!map[key]) map[key] = t;
+      else if (t.done && !map[key].done) map[key] = t; // done wins
     });
-  } else {
-    await fetch(`${SB_URL}/rest/v1/myplan_data`, {
-      method: 'POST',
-      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
-      , body
-    });
-  }
+    result[zoneId] = Object.values(map);
+  });
+  return result;
+}
+
+async function syncWithCloud() {
+  if (!userName) return;
+  try {
+    const remote = await sbGet(userName);
+    const localUpdated = localStorage.getItem('myplan_updated_at') || '0';
+
+    if (!remote) {
+      // First time — push local to cloud
+      await sbSave(userName, zones, tasks);
+      localStorage.setItem('myplan_updated_at', new Date().toISOString());
+      return;
+    }
+
+    const remoteUpdated = remote.updated_at || '0';
+
+    if (remoteUpdated > localUpdated) {
+      // Remote is newer — merge remote into local
+      const mergedTasks = mergeTasks(tasks, remote.tasks || {});
+      // Zones: remote wins if remote is newer
+      zones = remote.zones && remote.zones.length > 0 ? remote.zones : zones;
+      tasks = mergedTasks;
+      zones.forEach(z => { if (!tasks[z.id]) tasks[z.id] = []; });
+      localStorage.setItem('myplan_zones', JSON.stringify(zones));
+      localStorage.setItem('myplan_v3', JSON.stringify(tasks));
+      localStorage.setItem('myplan_updated_at', remoteUpdated);
+      renderSidebar();
+      switchZone(currentZone);
+    } else {
+      // Local is newer — push to cloud
+      await sbSave(userName, zones, tasks);
+      localStorage.setItem('myplan_updated_at', new Date().toISOString());
+    }
+  } catch(e) { console.error('Sync error:', e); }
 }
 
 let syncTimeout = null;
-function schedulSync() {
+function scheduleSync() {
+  // Update local timestamp immediately on change
+  localStorage.setItem('myplan_updated_at', new Date().toISOString());
   clearTimeout(syncTimeout);
   syncTimeout = setTimeout(async () => {
     if (userName) await sbSave(userName, zones, tasks);
   }, 1500);
 }
+
+// Periodic sync every 30 seconds to catch changes from other devices
+setInterval(() => { if (userName) syncWithCloud(); }, 30000);
 
 const DEFAULT_ZONES = [
   { id:'church',   emoji:'⛪', label:'Церковь', color:'#7C5CBF' },
@@ -461,7 +524,7 @@ zones.forEach(z => { if (!tasks[z.id]) tasks[z.id] = []; });
 function saveAll() {
   localStorage.setItem('myplan_zones', JSON.stringify(zones));
   localStorage.setItem('myplan_v3',    JSON.stringify(tasks));
-  schedulSync();
+  scheduleSync();
 }
 
 /* ── Theme ── */
@@ -739,19 +802,11 @@ async function finishOnboarding() {
   userName = val;
   localStorage.setItem('myplan_username', userName);
   applyUserName();
-  // Try to load existing data from Supabase
-  try {
-    const existing = await sbGet(userName);
-    if (existing && existing.zones && existing.zones.length > 0) {
-      zones = existing.zones;
-      tasks = existing.tasks || {};
-      localStorage.setItem('myplan_zones', JSON.stringify(zones));
-      localStorage.setItem('myplan_v3', JSON.stringify(tasks));
-    }
-  } catch(e) {}
   const ob = document.getElementById('onboarding');
   ob.classList.add('hidden');
   setTimeout(() => ob.style.display = 'none', 400);
+  // Sync with cloud — if remote data exists, merge it in
+  await syncWithCloud();
   renderSidebar();
   switchZone(zones[0]?.id || currentZone);
 }
@@ -816,21 +871,8 @@ if (!userName) {
   setTimeout(() => document.getElementById('ob-input').focus(), 300);
 } else {
   document.getElementById('onboarding').style.display = 'none';
-  // Load from Supabase
-  (async () => {
-    try {
-      const existing = await sbGet(userName);
-      if (existing && existing.zones && existing.zones.length > 0) {
-        zones = existing.zones;
-        tasks = existing.tasks || {};
-        zones.forEach(z => { if (!tasks[z.id]) tasks[z.id] = []; });
-        localStorage.setItem('myplan_zones', JSON.stringify(zones));
-        localStorage.setItem('myplan_v3', JSON.stringify(tasks));
-        renderSidebar();
-        switchZone(zones[0]?.id || currentZone);
-      }
-    } catch(e) {}
-  })();
+  // Sync on startup
+  syncWithCloud();
 }
 
 document.getElementById('profile-save-btn').style.background = 'var(--current)';
