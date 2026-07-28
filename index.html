@@ -847,29 +847,36 @@ function buildSystemPrompt() {
 
   return `Ты — умный личный ИИ-ассистент планировщика MyPlan для ${userName || 'пользователя'}.
 
-ВАЖНО: Ты можешь РЕАЛЬНО добавлять, удалять и изменять задачи в планировщике!
+ВАЖНО: Ты можешь РЕАЛЬНО добавлять, редактировать, удалять и отмечать задачи в планировщике!
 
 ДОСТУПНЫЕ СФЕРЫ: ${zonesList}
 
 ТЕКУЩИЕ ЗАДАЧИ:
 ${allContext}
 
-КАК ВЫПОЛНЯТЬ ДЕЙСТВИЯ:
-Если нужно выполнить действие с задачами — добавь в КОНЕЦ ответа блок ACTIONS в точно таком формате:
+КАК ВЫПОЛНЯТЬ ДЕЙСТВИЯ — добавь в КОНЕЦ ответа блок ACTIONS:
 
 ACTIONS:
-[{"action":"add","zoneId":"ZONE_ID","text":"текст задачи","prio":"high|med|low","tag":"тег или пусто"}]
+[{"action":"ДЕЙСТВИЕ",...}]
 
-Примеры:
-- Добавить задачу: [{"action":"add","zoneId":"personal","text":"Купить продукты","prio":"med","tag":""}]
-- Добавить несколько: [{"action":"add","zoneId":"work","text":"Написать отчёт","prio":"high","tag":"отчёт"},{"action":"add","zoneId":"church","text":"Подготовить встречу","prio":"med","tag":""}]
+ДОСТУПНЫЕ ДЕЙСТВИЯ:
+1. ДОБАВИТЬ: {"action":"add","zoneId":"ID","text":"текст","prio":"high|med|low","tag":""}
+2. ИЗМЕНИТЬ: {"action":"edit","zoneId":"ID","find":"часть старого текста","text":"новый текст","prio":"med","tag":""}
+3. УДАЛИТЬ: {"action":"delete","zoneId":"ID","find":"часть текста"}
+4. ВЫПОЛНЕНО: {"action":"done","zoneId":"ID","find":"часть текста"}
+
+ПРИМЕРЫ:
+- Добавить: [{"action":"add","zoneId":"church","text":"Скачать вести","prio":"med","tag":""}]
+- Изменить: [{"action":"edit","zoneId":"church","find":"миссионерские вести","text":"Скачать миссионерские вести по ссылке cloud.eud.adventist.org","prio":"med","tag":""}]
+- Удалить: [{"action":"delete","zoneId":"personal","find":"Phone Doctor"}]
+- Несколько: [{"action":"add","zoneId":"work","text":"Задача 1","prio":"high","tag":""},{"action":"edit","zoneId":"church","find":"старый текст","text":"новый текст","prio":"med","tag":""}]
 
 ПРАВИЛА:
-- Отвечай на языке пользователя (русский/немецкий/английский)  
-- Сначала напиши текстовый ответ, потом ACTIONS если нужно действие
-- Используй точные id сфер: ${zonesList}
-- prio: "high" = срочно, "med" = средний, "low" = не срочно
-- Если пользователь просит добавить задачу — ВСЕГДА добавляй через ACTIONS
+- Отвечай на языке пользователя (русский/немецкий/английский)
+- Сначала напиши текстовый ответ, потом ACTIONS
+- ВСЕГДА используй ACTIONS когда просят добавить/изменить/удалить задачу
+- Используй точные id сфер из списка выше
+- Для edit/delete используй "find" с уникальной частью текста задачи
 - Максимум 3-4 предложения в текстовом ответе`;
 }
 
@@ -899,27 +906,50 @@ async function sendToAI() {
     if (actionsMatch) {
       try {
         const actions = JSON.parse(actionsMatch[1]);
-        let addedCount = 0;
+        let changed = false;
         actions.forEach(a => {
           if (a.action === 'add' && a.zoneId && a.text) {
             if (!tasks[a.zoneId]) tasks[a.zoneId] = [];
-            tasks[a.zoneId].push({
-              text: a.text,
-              done: false,
-              prio: a.prio || 'med',
-              tag: a.tag || ''
-            });
-            addedCount++;
+            tasks[a.zoneId].push({ text: a.text, done: false, prio: a.prio || 'med', tag: a.tag || '' });
+            changed = true;
+          } else if (a.action === 'edit' && a.zoneId !== undefined && a.index !== undefined) {
+            // Find task by index or by text match
+            const zoneId = a.zoneId;
+            if (!tasks[zoneId]) return;
+            let idx = -1;
+            if (typeof a.index === 'number') {
+              idx = a.index;
+            } else if (a.find) {
+              idx = tasks[zoneId].findIndex(t => t.text.toLowerCase().includes(a.find.toLowerCase()));
+            }
+            if (idx >= 0 && idx < tasks[zoneId].length) {
+              if (a.text) tasks[zoneId][idx].text = a.text;
+              if (a.prio) tasks[zoneId][idx].prio = a.prio;
+              if (a.tag !== undefined) tasks[zoneId][idx].tag = a.tag;
+              changed = true;
+            }
+          } else if (a.action === 'delete' && a.zoneId) {
+            if (!tasks[a.zoneId]) return;
+            let idx = -1;
+            if (typeof a.index === 'number') {
+              idx = a.index;
+            } else if (a.find) {
+              idx = tasks[a.zoneId].findIndex(t => t.text.toLowerCase().includes(a.find.toLowerCase()));
+            }
+            if (idx >= 0) {
+              tasks[a.zoneId].splice(idx, 1);
+              changed = true;
+            }
+          } else if (a.action === 'done' && a.zoneId) {
+            if (!tasks[a.zoneId]) return;
+            let idx = -1;
+            if (typeof a.index === 'number') idx = a.index;
+            else if (a.find) idx = tasks[a.zoneId].findIndex(t => t.text.toLowerCase().includes(a.find.toLowerCase()));
+            if (idx >= 0) { tasks[a.zoneId][idx].done = true; changed = true; }
           }
         });
-        if (addedCount > 0) {
-          saveAll();
-          renderTasks();
-          updateWheel();
-          renderSidebar();
-        }
+        if (changed) { saveAll(); renderTasks(); updateWheel(); renderSidebar(); }
       } catch(e) { console.error('Actions parse error:', e); }
-      // Remove ACTIONS block from displayed text
       reply = reply.replace(/ACTIONS:\s*\[[\s\S]*?\]/g, '').trim();
     }
 
