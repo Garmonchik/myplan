@@ -834,39 +834,43 @@ document.getElementById('modal-profile-overlay').addEventListener('click', e => 
 const WORKER_URL = 'https://myplan-ai.dolbilindmitrii16051105.workers.dev';
 
 function buildSystemPrompt() {
-  // Give AI full context of ALL zones and tasks
   const allContext = zones.map(z => {
     const zoneTasks = (tasks[z.id] || []);
     const todo = zoneTasks.filter(t => !t.done);
     const done = zoneTasks.filter(t => t.done);
     const urgent = todo.filter(t => t.prio === 'high');
-    return `📌 ${z.emoji} ${z.label}: ${todo.length} задач (${urgent.length} срочных, ${done.length} выполнено)\n` +
-      (todo.length ? todo.map(t => `  • [${t.prio === 'high' ? '🔴' : t.prio === 'low' ? '🟢' : '🟡'}] ${t.text}${t.tag ? ' #'+t.tag : ''}`).join('\n') : '  (пусто)');
+    return `📌 ${z.emoji} ${z.label} (id: "${z.id}"): ${todo.length} задач (${urgent.length} срочных, ${done.length} выполнено)\n` +
+      (todo.length ? todo.map(t => `  • [${t.prio === 'high' ? 'СРОЧНО' : t.prio === 'low' ? 'низкий' : 'средний'}] ${t.text}${t.tag ? ' #'+t.tag : ''}`).join('\n') : '  (пусто)');
   }).join('\n\n');
 
-  return `Ты — умный личный ИИ-ассистент планировщика MyPlan для пользователя ${userName || 'пользователя'}.
+  const zonesList = zones.map(z => `"${z.id}" = ${z.label}`).join(', ');
 
-ТВОИ ВОЗМОЖНОСТИ:
-1. Видишь ВСЕ задачи во всех сферах пользователя
-2. Помогаешь структурировать и планировать
-3. Разбиваешь большие цели на конкретные шаги
-4. Замечаешь перегрузки и конфликты между сферами
-5. Предлагаешь приоритеты и что делать в первую очередь
-6. Исправляешь орфографию и формулировки задач
-7. Отвечаешь на вопросы о планировании и продуктивности
+  return `Ты — умный личный ИИ-ассистент планировщика MyPlan для ${userName || 'пользователя'}.
 
-ТЕКУЩЕЕ СОСТОЯНИЕ ВСЕХ ЗАДАЧ:
+ВАЖНО: Ты можешь РЕАЛЬНО добавлять, удалять и изменять задачи в планировщике!
+
+ДОСТУПНЫЕ СФЕРЫ: ${zonesList}
+
+ТЕКУЩИЕ ЗАДАЧИ:
 ${allContext}
 
-ТЕКУЩАЯ АКТИВНАЯ СФЕРА: ${(zones.find(z => z.id === currentZone) || {}).label || currentZone}
+КАК ВЫПОЛНЯТЬ ДЕЙСТВИЯ:
+Если нужно выполнить действие с задачами — добавь в КОНЕЦ ответа блок ACTIONS в точно таком формате:
 
-ПРАВИЛА ОТВЕТОВ:
-- Отвечай на языке пользователя (русский/немецкий/английский)
-- Будь конкретным и практичным, не общим
-- Если видишь перегрузку — скажи честно
-- Если задача расплывчатая — предложи как её уточнить
-- Максимум 4-5 предложений если не просят подробнее
-- Никогда не говори "я не могу" — всегда предлагай альтернативу`;
+ACTIONS:
+[{"action":"add","zoneId":"ZONE_ID","text":"текст задачи","prio":"high|med|low","tag":"тег или пусто"}]
+
+Примеры:
+- Добавить задачу: [{"action":"add","zoneId":"personal","text":"Купить продукты","prio":"med","tag":""}]
+- Добавить несколько: [{"action":"add","zoneId":"work","text":"Написать отчёт","prio":"high","tag":"отчёт"},{"action":"add","zoneId":"church","text":"Подготовить встречу","prio":"med","tag":""}]
+
+ПРАВИЛА:
+- Отвечай на языке пользователя (русский/немецкий/английский)  
+- Сначала напиши текстовый ответ, потом ACTIONS если нужно действие
+- Используй точные id сфер: ${zonesList}
+- prio: "high" = срочно, "med" = средний, "low" = не срочно
+- Если пользователь просит добавить задачу — ВСЕГДА добавляй через ACTIONS
+- Максимум 3-4 предложения в текстовом ответе`;
 }
 
 async function sendToAI() {
@@ -888,13 +892,38 @@ async function sendToAI() {
       })
     });
     const data=await res.json();
-    const reply = data.text || 'Не удалось получить ответ.';
-    ty.querySelector('.msg-bub').textContent = reply;
+    let reply = data.text || 'Не удалось получить ответ.';
 
-    // Check if AI suggests adding a task (simple keyword detection)
-    if (reply.includes('добавить') || reply.includes('добавь') || text.toLowerCase().includes('добавь задачу')) {
-      ty.querySelector('.msg-bub').textContent = reply;
+    // Parse and execute ACTIONS
+    const actionsMatch = reply.match(/ACTIONS:\s*(\[[\s\S]*?\])/);
+    if (actionsMatch) {
+      try {
+        const actions = JSON.parse(actionsMatch[1]);
+        let addedCount = 0;
+        actions.forEach(a => {
+          if (a.action === 'add' && a.zoneId && a.text) {
+            if (!tasks[a.zoneId]) tasks[a.zoneId] = [];
+            tasks[a.zoneId].push({
+              text: a.text,
+              done: false,
+              prio: a.prio || 'med',
+              tag: a.tag || ''
+            });
+            addedCount++;
+          }
+        });
+        if (addedCount > 0) {
+          saveAll();
+          renderTasks();
+          updateWheel();
+          renderSidebar();
+        }
+      } catch(e) { console.error('Actions parse error:', e); }
+      // Remove ACTIONS block from displayed text
+      reply = reply.replace(/ACTIONS:\s*\[[\s\S]*?\]/g, '').trim();
     }
+
+    ty.querySelector('.msg-bub').textContent = reply;
   } catch { ty.querySelector('.msg-bub').textContent='Ошибка подключения. Проверь интернет.'; }
   msgs.scrollTop=msgs.scrollHeight;
 }
