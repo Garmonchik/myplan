@@ -907,15 +907,16 @@ async function sendToAI() {
       try {
         const actions = JSON.parse(actionsMatch[1]);
         let changed = false;
+        const results = [];
         actions.forEach(a => {
           if (a.action === 'add' && a.zoneId && a.text) {
             if (!tasks[a.zoneId]) tasks[a.zoneId] = [];
             tasks[a.zoneId].push({ text: a.text, done: false, prio: a.prio || 'med', tag: a.tag || '' });
             changed = true;
-          } else if (a.action === 'edit' && a.zoneId !== undefined && a.index !== undefined) {
-            // Find task by index or by text match
+            results.push('✓ добавлено');
+          } else if (a.action === 'edit' && a.zoneId && (a.find !== undefined || a.index !== undefined)) {
             const zoneId = a.zoneId;
-            if (!tasks[zoneId]) return;
+            if (!tasks[zoneId]) { results.push('✗ сфера не найдена'); return; }
             let idx = -1;
             if (typeof a.index === 'number') {
               idx = a.index;
@@ -927,9 +928,12 @@ async function sendToAI() {
               if (a.prio) tasks[zoneId][idx].prio = a.prio;
               if (a.tag !== undefined) tasks[zoneId][idx].tag = a.tag;
               changed = true;
+              results.push('✓ изменено');
+            } else {
+              results.push(`✗ не найдено: "${a.find||''}"`);
             }
           } else if (a.action === 'delete' && a.zoneId) {
-            if (!tasks[a.zoneId]) return;
+            if (!tasks[a.zoneId]) { results.push('✗ сфера не найдена'); return; }
             let idx = -1;
             if (typeof a.index === 'number') {
               idx = a.index;
@@ -939,16 +943,21 @@ async function sendToAI() {
             if (idx >= 0) {
               tasks[a.zoneId].splice(idx, 1);
               changed = true;
+              results.push('✓ удалено');
+            } else {
+              results.push(`✗ не найдено: "${a.find||''}"`);
             }
           } else if (a.action === 'done' && a.zoneId) {
-            if (!tasks[a.zoneId]) return;
+            if (!tasks[a.zoneId]) { results.push('✗ сфера не найдена'); return; }
             let idx = -1;
             if (typeof a.index === 'number') idx = a.index;
             else if (a.find) idx = tasks[a.zoneId].findIndex(t => t.text.toLowerCase().includes(a.find.toLowerCase()));
-            if (idx >= 0) { tasks[a.zoneId][idx].done = true; changed = true; }
+            if (idx >= 0) { tasks[a.zoneId][idx].done = true; changed = true; results.push('✓ выполнено'); }
+            else results.push(`✗ не найдено: "${a.find||''}"`);
           }
         });
         if (changed) { saveAll(); renderTasks(); updateWheel(); renderSidebar(); }
+        window.__lastActionResults = results;
       } catch(e) { console.error('Actions parse error:', e); }
       reply = reply.replace(/ACTIONS:\s*\[[\s\S]*?\]/g, '').trim();
     }
