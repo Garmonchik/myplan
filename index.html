@@ -832,7 +832,43 @@ document.getElementById('modal-profile-overlay').addEventListener('click', e => 
 
 /* ── AI ── */
 const WORKER_URL = 'https://myplan-ai.dolbilindmitrii16051105.workers.dev';
-const SYS = `Ты личный ИИ-ассистент планировщика. Помогаешь структурировать задачи, исправляешь орфографию, предлагаешь как разбить цели на шаги. Отвечай коротко и дружелюбно на языке пользователя (чаще русский). Максимум 3-4 предложения.`;
+
+function buildSystemPrompt() {
+  // Give AI full context of ALL zones and tasks
+  const allContext = zones.map(z => {
+    const zoneTasks = (tasks[z.id] || []);
+    const todo = zoneTasks.filter(t => !t.done);
+    const done = zoneTasks.filter(t => t.done);
+    const urgent = todo.filter(t => t.prio === 'high');
+    return `📌 ${z.emoji} ${z.label}: ${todo.length} задач (${urgent.length} срочных, ${done.length} выполнено)\n` +
+      (todo.length ? todo.map(t => `  • [${t.prio === 'high' ? '🔴' : t.prio === 'low' ? '🟢' : '🟡'}] ${t.text}${t.tag ? ' #'+t.tag : ''}`).join('\n') : '  (пусто)');
+  }).join('\n\n');
+
+  return `Ты — умный личный ИИ-ассистент планировщика MyPlan для пользователя ${userName || 'пользователя'}.
+
+ТВОИ ВОЗМОЖНОСТИ:
+1. Видишь ВСЕ задачи во всех сферах пользователя
+2. Помогаешь структурировать и планировать
+3. Разбиваешь большие цели на конкретные шаги
+4. Замечаешь перегрузки и конфликты между сферами
+5. Предлагаешь приоритеты и что делать в первую очередь
+6. Исправляешь орфографию и формулировки задач
+7. Отвечаешь на вопросы о планировании и продуктивности
+
+ТЕКУЩЕЕ СОСТОЯНИЕ ВСЕХ ЗАДАЧ:
+${allContext}
+
+ТЕКУЩАЯ АКТИВНАЯ СФЕРА: ${(zones.find(z => z.id === currentZone) || {}).label || currentZone}
+
+ПРАВИЛА ОТВЕТОВ:
+- Отвечай на языке пользователя (русский/немецкий/английский)
+- Будь конкретным и практичным, не общим
+- Если видишь перегрузку — скажи честно
+- Если задача расплывчатая — предложи как её уточнить
+- Максимум 4-5 предложений если не просят подробнее
+- Никогда не говори "я не могу" — всегда предлагай альтернативу`;
+}
+
 async function sendToAI() {
   const inp=document.getElementById('ai-input'), text=inp.value.trim();
   if(!text) return; inp.value='';
@@ -843,19 +879,23 @@ async function sendToAI() {
   const ty=document.createElement('div'); ty.className='msg ai';
   ty.innerHTML=`<div class="msg-av">✦</div><div class="msg-bub"><div class="typing"><span></span><span></span><span></span></div></div>`;
   msgs.appendChild(ty); msgs.scrollTop=msgs.scrollHeight;
-  const zLabel=(zones.find(z=>z.id===currentZone)||{}).label||currentZone;
-  const summary=(tasks[currentZone]||[]).map(t=>`- ${t.text} (${t.done?'✓':'•'})`).join('\n')||'пусто';
   try {
     const res=await fetch(WORKER_URL,{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        system:SYS+`\n\nСфера: ${zLabel}\nЗадачи:\n${summary}`,
+        system: buildSystemPrompt(),
         messages:[{role:'user',content:text}]
       })
     });
     const data=await res.json();
-    ty.querySelector('.msg-bub').textContent=data.text||'Не удалось получить ответ.';
-  } catch { ty.querySelector('.msg-bub').textContent='Ошибка подключения.'; }
+    const reply = data.text || 'Не удалось получить ответ.';
+    ty.querySelector('.msg-bub').textContent = reply;
+
+    // Check if AI suggests adding a task (simple keyword detection)
+    if (reply.includes('добавить') || reply.includes('добавь') || text.toLowerCase().includes('добавь задачу')) {
+      ty.querySelector('.msg-bub').textContent = reply;
+    }
+  } catch { ty.querySelector('.msg-bub').textContent='Ошибка подключения. Проверь интернет.'; }
   msgs.scrollTop=msgs.scrollHeight;
 }
 document.getElementById('ai-input').addEventListener('keydown', e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendToAI();} });
